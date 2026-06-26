@@ -3,7 +3,7 @@
 #include <thread>
 
 #include "file_trans_server.h"
-#include "udp_multicast_server.h"
+#include "udp_broadcast_server.h"
 
 int main(int argc, char* argv[]){
     if(argc != 4){
@@ -11,13 +11,13 @@ int main(int argc, char* argv[]){
         return 1;
     }
 
-    std::jthread udp_multicast_thread([argv](){
+    std::jthread udp_broadcast_thread([argv](){
         try{
-            udp_multicast::UdpMulticastServer udp_multicast_server("239.255.0.1", "30001", argv[1], argv[2], argv[3]);
-            udp_multicast_server.start();
+            udp_broadcast::UdpBroadcastServer udp_broadcast_server("30001", argv[1], argv[2], argv[3]);
+            udp_broadcast_server.start();
         }
         catch(const std::exception& e){
-            std::cerr << "Exception in UDP Multicast Server: " << e.what() << std::endl;
+            std::cerr << "Exception in UDP Broadcast Server: " << e.what() << std::endl;
         }
     });
 

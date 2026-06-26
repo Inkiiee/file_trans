@@ -22,7 +22,7 @@ set(SRCS
     src/main.cpp
     src/file_trans_server.cpp
     src/trans_session.cpp
-    src/udp_multicast_server.cpp
+    src/udp_broadcast_server.cpp
 )
 
 add_executable(file_trans ${SRCS})

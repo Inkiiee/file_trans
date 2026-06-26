@@ -5,7 +5,7 @@
 #include <vector>
 #include <iostream>
 
-#include "udp_multicast_server.h"
+#include "udp_broadcast_server.h"
 
 using asio::awaitable;
 using asio::co_spawn;
@@ -13,16 +13,15 @@ using asio::detached;
 using asio::io_context;
 using asio::ip::udp;
 using asio::as_tuple;
-using namespace udp_multicast;
+using namespace udp_broadcast;
 
-UdpMulticastServer::UdpMulticastServer(
-    const std::string& multicast_address, 
+UdpBroadcastServer::UdpBroadcastServer(
     const std::string& port, 
     const std::string& target_server_address, 
     const std::string& target_server_port,
     const std::string& id
 ) : socket_(io_context_), recv_buffer_(2048), target_server_address_(target_server_address), target_server_port_(target_server_port), id_(id) {
-    // 멀티캐스트 수신을 위해서는 유니캐스트 주소가 아닌 INADDR_ANY(0.0.0.0)에 바인딩해야 한다.
+    // 브로드캐스트 수신을 위해서는 유니캐스트 주소가 아닌 INADDR_ANY(0.0.0.0)에 바인딩해야 한다.
     udp::endpoint listen_endpoint(asio::ip::address_v4::any(), std::stoi(port));
     socket_.open(listen_endpoint.protocol());
     socket_.bind(listen_endpoint);
@@ -32,11 +31,11 @@ UdpMulticastServer::UdpMulticastServer(
     std::cout << "[UDP Server] Server ID: " << id << std::endl;
 }
 
-UdpMulticastServer::~UdpMulticastServer(){
+UdpBroadcastServer::~UdpBroadcastServer(){
     stop();
 }
 
-awaitable<void> UdpMulticastServer::start_receive(){
+awaitable<void> UdpBroadcastServer::start_receive(){
     try{
         for(;;){
             auto [e, n] = co_await socket_.async_receive_from(asio::buffer(recv_buffer_), sender_endpoint_, as_tuple);
@@ -54,7 +53,7 @@ awaitable<void> UdpMulticastServer::start_receive(){
     }
 }
 
-awaitable<void> UdpMulticastServer::handle_receive(const std::vector<uint8_t>& data, const udp::endpoint& sender_endpoint){
+awaitable<void> UdpBroadcastServer::handle_receive(const std::vector<uint8_t>& data, const udp::endpoint& sender_endpoint){
     if(data.size() < 8 || data[0] != 'U' || data[1] != 'S'){
         std::cerr << "Invalid packet received from " << sender_endpoint << std::endl;
         co_return;
@@ -108,7 +107,7 @@ awaitable<void> UdpMulticastServer::handle_receive(const std::vector<uint8_t>& d
     co_await send_packet(create_packet(PacketType::SERVER_INFO_RESPONSE, response_payload), sender_endpoint);
 }
 
-awaitable<void> UdpMulticastServer::send_packet(std::vector<uint8_t> data, const udp::endpoint& target_endpoint){
+awaitable<void> UdpBroadcastServer::send_packet(std::vector<uint8_t> data, const udp::endpoint& target_endpoint){
     try{
         auto [e, n] = co_await socket_.async_send_to(asio::buffer(data), target_endpoint, as_tuple);
         if(e)
@@ -121,7 +120,7 @@ awaitable<void> UdpMulticastServer::send_packet(std::vector<uint8_t> data, const
     }
 }
 
-std::vector<uint8_t> UdpMulticastServer::create_packet(PacketType packet_type, const std::vector<uint8_t>& payload){
+std::vector<uint8_t> UdpBroadcastServer::create_packet(PacketType packet_type, const std::vector<uint8_t>& payload){
     std::vector<uint8_t> packet(8 + payload.size());
     packet[0] = 'U';
     packet[1] = 'S';
@@ -131,17 +130,17 @@ std::vector<uint8_t> UdpMulticastServer::create_packet(PacketType packet_type, c
     return packet;
 }
 
-std::vector<uint8_t> UdpMulticastServer::create_packet(PacketType packet_type, const std::string& payload_str){
+std::vector<uint8_t> UdpBroadcastServer::create_packet(PacketType packet_type, const std::string& payload_str){
     std::vector<uint8_t> payload(payload_str.begin(), payload_str.end());
     return create_packet(packet_type, payload);
 }
 
-void UdpMulticastServer::start(){
+void UdpBroadcastServer::start(){
     co_spawn(io_context_, start_receive(), detached);
     io_context_.run();
 }
 
-void UdpMulticastServer::stop(){
+void UdpBroadcastServer::stop(){
     io_context_.stop();
     socket_.close();
 }
